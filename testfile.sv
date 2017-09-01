@@ -49,13 +49,21 @@ dasda
 // sdas
 reg  aa   =15  ;
 reg  aaa  =336 ;
-wire [13:fd 0] aa          ;
-wire [13:  0]  bb          ;
-wire [13:  0]  vv          ;
-reg  [12:   0] dd [35:15]  ;
 
-assign a = 15;
-assign b   = 35848 ;
+wire [13:fd 0] aa               ;
+wire [13:  0]  bb               ;
+wire [13:  0]  vv               ;
+reg  [12:   0] dd  [35:15]      ;
+assign a = 15    
+assign b = 35848 
+
+
+always_comb begin
+ a      = 15   ;
+ addfdf = 331-1;
+ fff    = 15+2 ;
+end
+
 
 aa
 toInst 
