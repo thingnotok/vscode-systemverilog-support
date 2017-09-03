@@ -21,9 +21,10 @@ export function alignment(){
 const declaration_regformat = [
   /\/\/.*/, //line comment
   /((reg|wire|logic|integer|bit|byte|shortint|int|longint|time|shortreal|real|double|realtime|assign)  *(signed)* *)/, //data_type
-  /(\[[^:]*:[^:]*\])*/, //vector
-  /((<=.*)|(=.*)|(\[[^:]*:[^:]*\])+)*;/, //array or assignment
-  /.*/, // variable (w/wo assignment)
+  /((<=.*)|(=.*);)|;/,  //assignment
+  /(\[[^:]*:[^:]*\])+/, //vector
+  /(\[[^:]*:[^:]*\])+/, //array
+  /.*/, // variable (/wo assignment)
 ];
 const dec_or_assign = /(((reg|wire|logic|integer|bit|byte|shortint|int|longint|time|shortreal|real|double|realtime|assign)  *(signed)* *))|((<=.*)|(=.*))/;
 
@@ -32,7 +33,6 @@ const dec_or_assign = /(((reg|wire|logic|integer|bit|byte|shortint|int|longint|t
 function test_new(data){
   let v1 = split_statements(data, '\n');
   let ident = get_ident(v1, dec_or_assign);
-  console.log(ident.length);
   let v2 = decs_handle(v1); // split a statement into fields and do inner-field prealignment
   let v3 = dec_format(v2, ident); // format the statements
   return v3;
@@ -58,21 +58,27 @@ const decs_handle = function (declarations){
   declarations.forEach(function f(declaration){
     decs_r.push(dec_split(declaration));
   },this);
-  // dec [mask, dtype, vec, variable, array/assignment]
-  decs_r = dec_align_vec(decs_r, 2, ''); // align vector
-  decs_r = dec_align_assignment(decs_r, 4); // align assignment
-  decs_r = dec_align_vec(decs_r, 4, ';'); // align array
+  
+  // dec     [mask, dtype, vec, variable, array, assignment]
+  decs_r = dec_align_vec(decs_r, 2); // align vector
+  decs_r = dec_align_vec(decs_r, 4); // align array
+  decs_r = dec_align_assignment(decs_r, 5); // align assignment
   return decs_r;
 }
 
 const dec_split = function(declaration) {
   if(check_type(declaration, dec_or_assign)) {// split into list of declaration field
     let dec = split_into_fields(declaration, declaration_regformat);
-    let dec_arrange = [dec[0], dec[2], dec[3], dec[5], dec[4], dec[1]];
+    if(dec[2]  == 'assign' || dec[2] == ""){ //pure assignment
+      dec[5] = dec[4];
+      dec[4] = "";
+    }
+    // dec_reg [flag, comment, data_type, assignment, vector, array, variable] 
+    let dec_arrange = [dec[0], dec[2], dec[4], dec[6], dec[5], dec[3], dec[1]];
     return dec_arrange;
   }
   else // unchange and marked as don't touch
-    return [0, declaration];
+    return ['0', declaration];
 };
 
 
@@ -81,31 +87,36 @@ function dec_align_assignment(declarations, assign_idx){
   declarations.forEach(function(dec){
     if(dec[0] == '1'){
       if(dec[assign_idx].search(/(=)/) !== -1){ // is assignment
+        dec[assign_idx] = dec[assign_idx].replace(/([\+\-\*]{1,2}|\/)/g,  ' $1 ');
         if(dec[assign_idx].search(/<=/) !== -1){
-          dec[assign_idx] = dec[assign_idx].slice(2, dec[assign_idx].length-2).trim();
+          dec[assign_idx] = dec[assign_idx].slice(2, dec[assign_idx].length-1).trim();
           rval_max = dec[assign_idx].length > rval_max ? dec[assign_idx].length : rval_max;
           dec[assign_idx] = '<= '+ dec[assign_idx];
         }
         else {
-          dec[assign_idx] = dec[assign_idx].slice(1, dec[assign_idx].length-2).trim();
+          dec[assign_idx] = dec[assign_idx].slice(1, dec[assign_idx].length-1).trim();
           rval_max = dec[assign_idx].length > rval_max ? dec[assign_idx].length : rval_max;
           dec[assign_idx] = '= '+ dec[assign_idx];
         }
       }
+      else {
+        dec[assign_idx] = '';
+      }
     }
   },this);
-  rval_max += 3;
+  rval_max += 2;
   declarations.forEach(function(dec){
     if(dec[0] == '1'){
-      if(dec[assign_idx].search(/=/) !== -1){
+      if(dec[assign_idx].search(/<=/) !== -1)
+        dec[assign_idx] = dec[assign_idx] + ' '.repeat(rval_max+1 - dec[assign_idx].length) + ';';
+      else
         dec[assign_idx] = dec[assign_idx] + ' '.repeat(rval_max - dec[assign_idx].length) + ';';
-      }
     }
   },this);
   return declarations;
 }
 
-function dec_align_vec(declarations, vec_field_idx, suffix){
+function dec_align_vec(declarations, vec_field_idx){
   let rval_max = [];
   declarations.forEach(function(dec){
     if(dec[0] == '1'){
@@ -140,7 +151,7 @@ function dec_align_vec(declarations, vec_field_idx, suffix){
           restruc += ']';
         idx++;
       }, this);
-      dec[vec_field_idx] = restruc + suffix;
+      dec[vec_field_idx] = restruc;
     }
   },this);
   
@@ -160,9 +171,9 @@ function get_ident(declarations, type){
 
 function format(statement_infield, anchors, ident){
   let recontruct = '';
-  if(statement_infield[0]){
+  if(statement_infield[0]=='1'){
     recontruct += ident;
-    for(let i=1; i<=anchors.length;i++)
+    for(let i=1; i<anchors.length;i++)
       recontruct += `${statement_infield[i]}${' '.repeat(anchors[i] - statement_infield[i].length)}`;
   }
   else
@@ -170,7 +181,6 @@ function format(statement_infield, anchors, ident){
   return recontruct;
 }
 function split_statements(text, split_point){
-  
   return text.split("\n");
 }
 function check_type(statement, type_identifier){
@@ -189,15 +199,13 @@ function split_into_fields(statement, fields){
 }
 function get_anchors(statements_infield, num_of_anchors){
   let anchors = [];
-  for(let i=0;i<num_of_anchors;i++)
+  for(let i=0;i<num_of_anchors+1;i++)
     anchors.push(0);
   statements_infield.forEach(function(statement){
-    if(statement.length !== num_of_anchors+1)
-      return;
-    else if(statement[0] == 0)
+    if(statement[0] == '0')
       return;
     else
-      for(let i = 1; i<num_of_anchors;i++)
+      for(let i = 1; i<num_of_anchors+1;i++)
         if(anchors[i]<statement[i].length)
           anchors[i] = statement[i].length;
   },this);
@@ -211,7 +219,7 @@ function get_state_field(s_obj, regx){
   let field = '';
   let field_t = s_obj.str.match(regx);
   if(field_t){
-    field = field_t[0].trim();
+    field = field_t[0].replace(/\s/g, '');
     s_obj.str = s_obj.str.replace(regx, '');
   }
   return field;

@@ -50,18 +50,19 @@ dasda
   reg aa  = 15; 
   reg aaa = 33; 
 
-  wire   [13:fd 0] aa          ;      
-  wire   [13:   0] bb          ;      
-  wire   [13:   0] vv          ;      
-  reg    [12:   0] dd  [35:15] ;      
-  assign a = 15    
-  assign b = 35848 
+  wire [13:fd0] aa           ; 
+  wire [13:  0] bb           ; 
+  wire [13:  0] vv           ; 
+  reg  [12:  0] dd [35:15]   ; 
+  assign a = 15   ; 
+  assign b = 35848; 
 
 
 always_comb begin
-  a      = 15     ; 
-  addfdf = 33     ; 
-  fff    = 15+gfdg; 
+  a= 15; 
+  addfdf = 33 ; 
+  fff= 15 + gfdg; 
+  dsfs[7487:46]=fsdfs[fsdf]+fsdfs+fsfsd
 end
 
 always_ff(@posedge clk)begin
@@ -72,8 +73,8 @@ always_ff(@posedge clk)begin
         dfdsf <= df; 
     end
     else begin
-        dfsdf <=fdfdsfsfs;
-        fdsfds <= dsfsdfs;
+        dfsdf  <= fdfdsfsfs; 
+        fdsfds <= dsfsdfs  ; 
     end
 end
 
