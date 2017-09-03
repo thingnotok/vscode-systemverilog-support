@@ -47,23 +47,35 @@ dasdas
 dasda
 */
 // sdas
-reg  aa   =15  ;
-reg  aaa  =336 ;
+  reg aa  = 15; 
+  reg aaa = 33; 
 
-wire [13:fd 0] aa               ;
-wire [13:  0]  bb               ;
-wire [13:  0]  vv               ;
-reg  [12:   0] dd  [35:15]      ;
-assign a = 15    
-assign b = 35848 
+  wire   [13:fd 0] aa          ;      
+  wire   [13:   0] bb          ;      
+  wire   [13:   0] vv          ;      
+  reg    [12:   0] dd  [35:15] ;      
+  assign a = 15    
+  assign b = 35848 
 
 
 always_comb begin
- a      = 15   ;
- addfdf = 331-1;
- fff    = 15+2 ;
+  a      = 15     ; 
+  addfdf = 33     ; 
+  fff    = 15+gfdg; 
 end
 
+always_ff(@posedge clk)begin
+  a    <= 57; 
+  c    <= df; 
+  fsdf <= df; 
+    if(fsdfsd)begin
+        dfdsf <= df; 
+    end
+    else begin
+        dfsdf <=fdfdsfsfs;
+        fdsfds <= dsfsdfs;
+    end
+end
 
 aa
 toInst 
