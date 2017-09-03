@@ -67,7 +67,13 @@
 				"when": "editorHasSelection",
 				"group": "1_modification"
     	}]
-		}
+		},
+		"keybindings": [{
+			"command": "extension.systemverilog.alignment",
+			"key": "alt+=",
+			"mac": "alt+=",
+			"when": "editorHasSelection"
+	}]
 	},
 	"activationEvents": [
 		"onLanguage:systemverilog"

@@ -47,35 +47,36 @@ dasdas
 dasda
 */
 // sdas
-  reg aa  = 15; 
-  reg aaa = 33; 
+  reg aa=15; 
+  reg aaa= 33; 
 
-  wire [13:fd0] aa           ; 
-  wire [13:  0] bb           ; 
-  wire [13:  0] vv           ; 
-  reg  [12:  0] dd [35:15]   ; 
-  assign a = 15   ; 
-  assign b = 35848; 
+  wire [13:fd0] aa; 
+  wire [hkjghj-45:  0] bb; 
+  wire [fsdfsfs-255:  0] vv; //sdfsfs
+  reg  [12:ghjds+1] dd [35:15];//wire reg a = fdfds; 
+
+  assign a={dd[15][24:0],dd[14][64:9]} ; 
+  assign b=35848+fsfsf; 
 
 
 always_comb begin
   a= 15; 
   addfdf = 33 ; 
-  fff= 15 + gfdg; 
-  dsfs[7487:46]=fsdfs[fsdf]+fsdfs+fsfsd
+      fff= 15 + gfdg; 
+  dsfs[7487:46]=fsdfs[fsdf]+fsdfs+fsfsd;
 end
 
 always_ff(@posedge clk)begin
-  a    <= 57; 
-  c    <= df; 
-  fsdf <= df; 
-    if(fsdfsd)begin
-        dfdsf <= df; 
-    end
-    else begin
-        dfsdf  <= fdfdsfsfs; 
-        fdsfds <= dsfsdfs  ; 
-    end
+  {a[65:314],b[fdsf:577]}<= 57; 
+  c[15:0]    <= df; 
+  fsdf <= df+fsdfs; 
+  if(fsdfsd)begin
+    dfdsf<= {df+fsdfsd, sfds[das:dasdas}; 
+  end
+  else begin
+    dfsdf <=fdfdsfsfs; 
+    fdsfds<=dsfsdfs  ; 
+  end
 end
 
 aa

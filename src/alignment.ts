@@ -63,16 +63,13 @@ const decs_handle = function (declarations){
   decs_r = dec_align_vec(decs_r, 2); // align vector
   decs_r = dec_align_vec(decs_r, 4); // align array
   decs_r = dec_align_assignment(decs_r, 5); // align assignment
+
   return decs_r;
 }
 
 const dec_split = function(declaration) {
   if(check_type(declaration, dec_or_assign)) {// split into list of declaration field
     let dec = split_into_fields(declaration, declaration_regformat);
-    if(dec[2]  == 'assign' || dec[2] == ""){ //pure assignment
-      dec[5] = dec[4];
-      dec[4] = "";
-    }
     // dec_reg [flag, comment, data_type, assignment, vector, array, variable] 
     let dec_arrange = [dec[0], dec[2], dec[4], dec[6], dec[5], dec[3], dec[1]];
     return dec_arrange;
@@ -88,6 +85,7 @@ function dec_align_assignment(declarations, assign_idx){
     if(dec[0] == '1'){
       if(dec[assign_idx].search(/(=)/) !== -1){ // is assignment
         dec[assign_idx] = dec[assign_idx].replace(/([\+\-\*]{1,2}|\/)/g,  ' $1 ');
+        dec[assign_idx] = dec[assign_idx].replace(/(,)/g,  '$1 ');
         if(dec[assign_idx].search(/<=/) !== -1){
           dec[assign_idx] = dec[assign_idx].slice(2, dec[assign_idx].length-1).trim();
           rval_max = dec[assign_idx].length > rval_max ? dec[assign_idx].length : rval_max;
@@ -162,7 +160,7 @@ function get_ident(declarations, type){
   let ident = '';
   for(let i=0; i<declarations.length;i++){
     if(check_type(declarations[i], type)) {// split into list of declaration field
-      ident = declarations[i].match(/\s*\b/); // get ident from first statement
+      ident = declarations[i].match(/\s*/); // get ident from first statement
       break;
     }
   }
@@ -189,12 +187,22 @@ function check_type(statement, type_identifier){
   else
     return false;
 }
+
 function split_into_fields(statement, fields){
   let format_list = ['1'];
   let statement_obj = {str : statement};
-  fields.forEach(function get_field(field){
-    format_list.push(get_state_field(statement_obj, field))
-  }, this);
+  format_list.push(get_state_field(statement_obj, fields[0])); //comment
+  format_list.push(get_state_field(statement_obj, fields[1])); // assignment
+  format_list.push(get_state_field(statement_obj, fields[2])); // dtype
+  if(format_list[2]  == 'assign' || format_list[2] == ""){ //pure assignment
+    format_list.push(""); //no vector
+    format_list.push(""); //no array
+  }
+  else{
+    format_list.push(get_state_field(statement_obj, fields[3])); // vector
+    format_list.push(get_state_field(statement_obj, fields[4])); // array
+  }
+  format_list.push(get_state_field(statement_obj, fields[5]).replace(/(,)/g,  '$1 ')); // l_value or variable
   return format_list;
 }
 function get_anchors(statements_infield, num_of_anchors){
