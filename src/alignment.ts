@@ -191,7 +191,7 @@ function check_type(statement, type_identifier){
 function split_into_fields(statement, fields){
   let format_list = ['1'];
   let statement_obj = {str : statement};
-  format_list.push(get_state_field(statement_obj, fields[0])); //comment
+  format_list.push(get_state_field_donttouch(statement_obj, fields[0])); //comment
   format_list.push(get_state_field(statement_obj, fields[1])); // assignment
   format_list.push(get_state_field(statement_obj, fields[2])); // dtype
   if(format_list[2]  == 'assign' || format_list[2] == ""){ //pure assignment
@@ -228,6 +228,16 @@ function get_state_field(s_obj, regx){
   let field_t = s_obj.str.match(regx);
   if(field_t){
     field = field_t[0].replace(/\s/g, '');
+    s_obj.str = s_obj.str.replace(regx, '');
+  }
+  return field;
+}
+
+function get_state_field_donttouch(s_obj, regx){
+  let field = '';
+  let field_t = s_obj.str.match(regx);
+  if(field_t){
+    field = field_t[0];
     s_obj.str = s_obj.str.replace(regx, '');
   }
   return field;
