@@ -28,9 +28,26 @@ const declaration_regformat = [
 ];
 const dec_or_assign = /(((reg|wire|logic|integer|bit|byte|shortint|int|longint|time|shortreal|real|double|realtime|assign)  *(signed)* *))|((<=.*)|(=.*))/;
 
+const moduleio_regformat = /module .*\(/;
+
+const io_regformat = [
+  /\/\/.*/, //line comment
+  /(input|output) *(reg|wire|logic|integer|bit|byte|shortint|int|longint|time|shortreal|real|double|realtime)*( *(signed)*)*/, //data_type
+  /(\[[^:]*:[^:]*\])+/, //vector
+  /.*/, // variable (/wo assignment)
+];
 
 
 function test_new(data){
+  if(check_type(data, moduleio_regformat)){
+    return io_proc(data);
+  }
+  else{
+    return declration_and_assignment_proc(data);
+  }
+}
+
+function declration_and_assignment_proc(data){
   let v1 = split_statements(data, '\n');
   let ident = get_ident(v1, dec_or_assign);
   let v2 = decs_handle(v1); // split a statement into fields and do inner-field prealignment
@@ -38,7 +55,74 @@ function test_new(data){
   return v3;
 }
 
+function io_proc(data){
+  let statement_obj = {str : data};
+  let mod = get_state_field(statement_obj, /module .*\(/);
+  let modend = get_state_field(statement_obj, /\);/);
+  let ss = statement_obj.str.replace(/,.*(\/\/.*)/g, '$1').replace(/,/g, ',\n');
+  let ios = ss.split('\n');
+  for(let i = 0;i< ios.length;i++){
+    ios[i] = ios[i].replace(/,/g, '').trim();
+  }
+  ios = cleanArray(ios);
+  let v2 = ios_handle(ios);
+  let v3 = ios_format(v2, ' '.repeat(2));
+  v3 = mod + '\n' + v3 + '\n' + modend;
+  return v3;
+}
 
+const ios_handle = function (ios){
+  let ios_r = [];
+  ios.forEach(function f(io){
+    ios_r.push(io_split(io));
+  },this);
+  ios_r = dec_align_vec(ios_r, 2); // align vector
+  ios_r.forEach(function(io){
+    if(io[0]=='1'){
+      io[3] = io[3].replace(',', '');
+      io[4] = ','+io[4];
+    }
+  },this);
+  return ios_r;
+}
+
+const io_split = function(io_i) {
+  if(check_type(io_i, io_regformat[1])) {// split into list of io field
+    let io = io_into_fields(io_i, io_regformat);
+    // io_reg [flag, comment, data_type, assignment, vector, array, variable] 
+    let io_arrange = [io[0], io[2], io[3], io[4], io[1]];
+    return io_arrange;
+  }
+  else if(!check_type(io_i, io_regformat[0]))
+    return ['1', '', '', io_i.trim(), ''];
+  else // unchange and marked as don't touch
+    return ['0', io_i];
+};
+
+function io_into_fields(statement, fields){
+  let format_list = ['1'];
+  let statement_obj = {str : statement};
+  format_list.push(get_state_field_donttouch(statement_obj, fields[0])); //comment
+  format_list.push(get_state_field(statement_obj, fields[1])); // assignment
+  format_list.push(get_state_field(statement_obj, fields[2])); // dtype
+  format_list.push(get_state_field(statement_obj, fields[3])); // vector
+  format_list.push(get_state_field(statement_obj, fields[4])); // array
+  return format_list;
+}
+
+const ios_format = function(declarations_infield, ident){
+  let anchors = get_anchors(declarations_infield, io_regformat.length);
+  let recontructs = [];
+  declarations_infield[declarations_infield.length-1][4] = declarations_infield[declarations_infield.length-1][4].replace(',', '');
+  declarations_infield.forEach(function(dec){
+    recontructs.push(format(dec, anchors, ident))
+  },this);
+  let r_text = '';
+  recontructs.forEach(function(rec){
+    r_text += rec + '\n';
+  },this);
+  return r_text.slice(0, -1);
+}
 
 const dec_format = function(declarations_infield, ident){
   let anchors = get_anchors(declarations_infield, declaration_regformat.length);
@@ -77,7 +161,6 @@ const dec_split = function(declaration) {
   else // unchange and marked as don't touch
     return ['0', declaration];
 };
-
 
 function dec_align_assignment(declarations, assign_idx){
   let rval_max = 0;
@@ -187,7 +270,6 @@ function check_type(statement, type_identifier){
   else
     return false;
 }
-
 function split_into_fields(statement, fields){
   let format_list = ['1'];
   let statement_obj = {str : statement};
@@ -222,17 +304,15 @@ function get_anchors(statements_infield, num_of_anchors){
   };
   return anchors;
 }
-
 function get_state_field(s_obj, regx){
   let field = '';
   let field_t = s_obj.str.match(regx);
   if(field_t){
-    field = field_t[0].replace(/\s/g, '');
+    field = field_t[0].trim().replace(/\s{2,}/g, ' ');
     s_obj.str = s_obj.str.replace(regx, '');
   }
   return field;
 }
-
 function get_state_field_donttouch(s_obj, regx){
   let field = '';
   let field_t = s_obj.str.match(regx);
@@ -245,7 +325,6 @@ function get_state_field_donttouch(s_obj, regx){
 function get_max(a, b){
   return a > b ? a : b;
 }
-
 function cleanArray(actual) {
   var newArray = new Array();
   for (var i = 0; i < actual.length; i++) {
