@@ -28,7 +28,7 @@ const declaration_regformat = [
 ];
 const dec_or_assign = /(((reg|wire|logic|integer|bit|byte|shortint|int|longint|time|shortreal|real|double|realtime|assign)  *(signed)* *))|((<=.*)|(=.*))/;
 
-const moduleio_regformat = /module .*\(/;
+const moduleio_regformat = /module\s+\b([A-Za-z_][A-Za-z0-9_]*)\b/;
 
 const io_regformat = [
   /\/\/.*/, //line comment
@@ -40,7 +40,7 @@ const io_regformat = [
 
 function test_new(data){
   if(check_type(data, moduleio_regformat)){
-    return io_proc(data);
+    return new_io_proc(data);
   }
   else{
     return declration_and_assignment_proc(data);
@@ -53,6 +53,174 @@ function declration_and_assignment_proc(data){
   let v2 = decs_handle(v1); // split a statement into fields and do inner-field prealignment
   let v3 = dec_format(v2, ident); // format the statements
   return v3;
+}
+
+function new_io_proc(data){
+  let moduleIO = data.substring(data.indexOf('module'), data.indexOf(';')+1);
+  let parametersName = [];
+  let portsName = [];
+  let data_inst = [];
+  let each_line = [];
+  let lines = moduleIO.split('\n');
+
+  // find all parameters and ports
+  let moduleName = moduleIO.match(/module\s+\b([A-Za-z_][A-Za-z0-9_]*)\b/)[0];
+  if (moduleName !== null)
+    each_line.push([moduleName, 'else']);
+  lines.splice(0, 1);
+  lines.forEach(line => {
+      line = line.trim();
+      let parm = line.match(/(parameter)\s+(\b[A-Za-z_][A-Za-z0-9_]*\b)\s*(.*)/);
+      let variables = line.match(/((input|output|inout) (reg)?)?\s*(\[.*:.*\])*\s*(\b\w*[\b,]?)*\s*(\/\/[^\n]*)?/);
+      if (parm !== null) {
+        let comment = parm[3].match(/\/\/.*/);
+        if(comment === null)
+            comment = "";
+        parm[3] = parm[3].replace(/\/\/.*/, "");
+        parm.push(comment);
+        parm[3] = parm[3].replace(/\s/g, '').replace(/([*/\-^|=])/, " $1 ");
+        parm.push('isparam');
+        each_line.push(parm);
+      }
+      else if(variables[5] !== undefined){
+        variables[2] = variables[2].replace(/\s/g, '').replace(/([\*\/\-\^\|\=])/g, " $1 ");
+        if(variables[4] != undefined)
+          variables[4] = variables[4].replace(/\s/g, '').replace(/([\*\/\-\^\|\=])/g, " $1 ");
+        variables.push('isvariables');
+        each_line.push(variables);
+      }
+      else{
+        each_line.push([line, 'else']);
+      }
+  });
+  let line_infield = [];
+  each_line.forEach(line => {
+    if(line[line.length-1] == 'else')
+      line_infield.push(['0', line[0]]);
+    else if(line[line.length-1] == 'isparam'){
+      let x = ['2'];
+      for(let i =1; i<5; i++)
+        x.push(udf2_empty(line[i]))
+      line_infield.push(x);
+    }
+    else{
+      let x = ['1'];
+      for(let i =2; i<7; i++)
+        x.push(udf2_empty(line[i]))
+      line_infield.push(x);
+    }
+  });
+  // handle , in alignment
+  line_infield.forEach(function f(line){
+    if(line[0] == '1')
+      line[4] = line[4].replace(',', '');
+    if(line[0] == '2')
+      line[3] = line[3].replace(',', '');
+  }, this);
+  line_infield = align_vec(line_infield, 3, '1');
+  let par_anchor = get_anchors_flag(line_infield, 4, '2');
+  let var_anchor = get_anchors_flag(line_infield, 5, '1');
+  line_infield = format_flag(line_infield, par_anchor, 2);
+  line_infield = format_flag(line_infield, var_anchor, 1);
+  let idx =0, p_idx =0, v_idx=0;
+  line_infield.forEach(function f(line){
+    if(line[0] == '1'){
+      line[4] = line[4] + ',';
+      p_idx = idx;
+    }
+    if(line[0] == '2'){
+      line[3] = line[3] + ',';
+      v_idx = idx;
+    }
+    idx ++;
+  }, this);
+  line_infield[p_idx][4] = line_infield[p_idx][4].replace(',', '');
+  line_infield[v_idx][3] = line_infield[v_idx][3].replace(',', '');
+  let resc = '';
+  line_infield.forEach(function f(state){
+    if(state[0] == '0')
+      resc += '';
+    else
+      resc += '  ';
+    for(let i=1;i<state.length;i++){
+      resc += state[i] + '';
+    }
+    resc += '\n';
+  }, this)
+  return resc;
+}
+
+
+function align_vec(declarations, vec_field_idx, flag){
+  let rval_max = [];
+  declarations.forEach(function(dec){
+    if(dec[0] == flag){
+      if(dec[vec_field_idx].length > 0 && dec[vec_field_idx].search(/\[/) !== -1){ // has vector
+        dec[0] = 'inprocess';
+        let vec_ary = dec[vec_field_idx].split(/[\[\]:]/)
+        vec_ary.pop();
+        let idx = 0;
+        dec[vec_field_idx] = cleanArray(vec_ary);
+        dec[vec_field_idx].forEach(function(vec){
+          if(idx<rval_max.length)
+            rval_max[idx] = rval_max[idx] > vec.length ? rval_max[idx] : vec.length;
+          else
+            rval_max.push(vec.length);
+          idx++;
+        }, this);
+      }
+    }
+  },this);
+  declarations.forEach(function(dec){
+    if(dec[0] == 'inprocess'){
+      dec[0] = '1';
+      let idx = 0;
+      let restruc = '';
+      dec[vec_field_idx].forEach(function(vec_w){
+        if(idx%2 == 0)
+          restruc += '[';
+        restruc += ' '.repeat(rval_max[idx] - vec_w.length) + vec_w;
+        if(idx%2 == 0)
+          restruc += ':';
+        else
+          restruc += ']';
+        idx++;
+      }, this);
+      dec[vec_field_idx] = restruc;
+    }
+  },this);
+  
+  return declarations;
+}
+
+function get_anchors_flag(statements_infield, num_of_anchors, flag){
+  let anchors = [];
+  for(let i=0;i<num_of_anchors;i++)
+    anchors.push(0);
+  statements_infield.forEach(function(statement){
+    if(statement[0] == flag)
+      for(let i = 0; i<num_of_anchors;i++)
+        if(anchors[i]<statement[i+1].length)
+          anchors[i] = statement[i+1].length;
+  },this);
+  for(let i = 0; i< anchors.length; i++){
+    anchors[i] += anchors[i] > 0 ? 1 : 0;
+  };
+  return anchors;
+}
+function format_flag(statement_infield, anchors, flag){
+  statement_infield.forEach(function f(state){
+    if(state[0] == flag){
+      for(let i=0; i<anchors.length; i++){
+        state[i+1] = state[i+1] + ' '.repeat(anchors[i] - state[i+1].length);
+      }
+    }
+  })
+  return statement_infield;
+}
+
+function udf2_empty(in_str){
+  return  in_str === undefined ? "" : in_str;
 }
 
 function io_proc(data){
@@ -287,6 +455,7 @@ function split_into_fields(statement, fields){
   format_list.push(get_state_field(statement_obj, fields[5]).replace(/(,)/g,  '$1 ')); // l_value or variable
   return format_list;
 }
+
 function get_anchors(statements_infield, num_of_anchors){
   let anchors = [];
   for(let i=0;i<num_of_anchors+1;i++)
